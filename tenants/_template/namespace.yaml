@@ -1,0 +1,13 @@
+# WHY: The namespace is the fundamental isolation boundary in Kubernetes.
+# Everything else (RBAC, NetworkPolicy, ResourceQuota) is scoped to it.
+# CHANGE THIS: Replace TENANT_NAME with the actual tenant name e.g. tenant-a
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: TENANT_NAME
+  labels:
+    # WHY: These labels are used by NetworkPolicy selectors and Kyverno
+    # policies to identify and target this namespace.
+    app.kubernetes.io/managed-by: argocd
+    environment: dev
+    tenant: TENANT_NAME

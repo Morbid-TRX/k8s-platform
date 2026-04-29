@@ -1,0 +1,41 @@
+# WHY: ResourceQuota caps how much CPU, memory, and how many objects
+# a tenant can create. Without this one tenant can starve all others
+# by consuming all node resources.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: TENANT_NAME-quota
+  namespace: TENANT_NAME
+spec:
+  hard:
+    # CHANGE THIS: Adjust limits based on what each tenant actually needs.
+    requests.cpu: "2"
+    requests.memory: 2Gi
+    limits.cpu: "4"
+    limits.memory: 4Gi
+    pods: "20"
+    services: "10"
+    persistentvolumeclaims: "5"
+    # WHY: Capping PVCs prevents a tenant from accidentally provisioning
+    # expensive storage volumes and blowing up the AWS bill.
+---
+# WHY: LimitRange sets default requests/limits on containers that don't
+# specify them. Without this, containers with no limits defined bypass
+# the ResourceQuota (quota only counts what's explicitly requested).
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: TENANT_NAME-limitrange
+  namespace: TENANT_NAME
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 200m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      max:
+        cpu: "2"
+        memory: 2Gi

@@ -1,0 +1,89 @@
+# WHY: Loki is Grafana's log aggregation tool. It works like Prometheus
+# but for logs instead of metrics. The key advantage over ELK stack is
+# it doesn't index log content — only labels — so it's much cheaper on
+# storage and memory. Perfect for a small cluster.
+# Full defaults: https://github.com/grafana/helm-charts/blob/main/charts/loki-stack/values.yaml
+
+loki:
+  enabled: true
+
+  persistence:
+    enabled: true
+    size: 10Gi
+    # WHY: Logs grow fast. 10Gi gives you roughly 7 days of logs for a
+    # small cluster. Increase for longer retention or more services.
+
+  config:
+    auth_enabled: false
+    # WHY: Multi-tenancy auth in Loki is for SaaS scenarios where multiple
+    # separate orgs share one Loki. For our single-team setup it adds
+    # complexity with no benefit.
+
+    ingester:
+      chunk_idle_period: 3m
+      chunk_block_size: 262144
+      chunk_retain_period: 1m
+
+    limits_config:
+      retention_period: 168h
+      # WHY: 168h = 7 days. Matches Prometheus retention for consistency.
+      # CHANGE THIS to 720h (30 days) for production.
+
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /data/loki/index
+        cache_location: /data/loki/index_cache
+        shared_store: filesystem
+      filesystem:
+        directory: /data/loki/chunks
+        # WHY: Filesystem storage is fine for local and single-node dev.
+        # CHANGE THIS to S3 for production — much cheaper and durable.
+        # s3:
+        #   bucketnames: CHANGE-ME-loki-chunks
+        #   region: ap-southeast-1
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+promtail:
+  enabled: true
+  # WHY: Promtail is the log collector — runs as a DaemonSet on every node
+  # and ships logs to Loki. Think of it as Fluent Bit but tightly integrated
+  # with Loki so you get automatic label discovery with no extra config.
+
+  config:
+    clients:
+      - url: http://loki:3100/loki/api/v1/push
+
+    snippets:
+      pipelineStages:
+        - cri: {}
+        # WHY: cri stage parses the Container Runtime Interface log format
+        # that Kubernetes uses. Without this, logs come in as raw strings
+        # with no timestamp or stream (stdout/stderr) parsing.
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists
+      # WHY: DaemonSets need this toleration to run on ALL nodes including
+      # control plane nodes that have NoSchedule taints. Without it,
+      # some nodes won't ship logs.
+
+grafana:
+  # WHY: Disabled here — we already installed Grafana via prometheus-stack.
+  # Loki gets added as a data source in Grafana separately.
+  # Enabling it here would create a second conflicting Grafana instance.
+  enabled: false

@@ -1,0 +1,118 @@
+# WHY: These are the cluster-wide security policies Kyverno enforces.
+# Each policy targets all namespaces except kube-system.
+# Action = enforce means non-compliant resources are BLOCKED.
+# Action = audit means they're ALLOWED but flagged — use audit first
+# to find violations before switching to enforce.
+
+---
+# WHY: Containers running as root can escape to the host if there's a
+# container runtime vulnerability. This policy blocks it at admission time.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-root-user
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: check-runAsNonRoot
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        message: "Containers must not run as root. Set runAsNonRoot: true in securityContext."
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  runAsNonRoot: true
+
+---
+# WHY: The 'latest' tag means your deployment pulls a different image every
+# time a pod restarts — zero reproducibility, impossible to roll back.
+# This policy forces all images to use explicit version tags like v1.2.3.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: check-image-tag
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        message: "Image tag 'latest' is not allowed. Use an explicit version tag e.g. v1.0.0."
+        pattern:
+          spec:
+            containers:
+              - image: "*:*"
+            initContainers:
+              - image: "*:*"
+
+---
+# WHY: Without resource requests, the K8s scheduler can't make good placement
+# decisions. Without limits, one bad pod can consume all node resources and
+# evict everything else. This policy enforces both.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: check-resource-limits
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaceSelector:
+                matchExpressions:
+                  - key: kubernetes.io/metadata.name
+                    operator: NotIn
+                    values: [kube-system, kyverno, monitoring, argocd]
+                    # WHY: Platform namespaces are excluded — their resource
+                    # requirements are managed by their own Helm chart values.
+      validate:
+        message: "All containers must have CPU and memory requests and limits defined."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"
+
+---
+# WHY: Labels are how you identify, query, and route traffic to pods.
+# Without app and environment labels, kubectl queries, Prometheus scraping,
+# and NetworkPolicy selectors all break or return incomplete results.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-pod-labels
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: check-required-labels
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaceSelector:
+                matchExpressions:
+                  - key: kubernetes.io/metadata.name
+                    operator: NotIn
+                    values: [kube-system, kyverno, monitoring, argocd]
+      validate:
+        message: "Pods must have 'app' and 'environment' labels."
+        pattern:
+          metadata:
+            labels:
+              app: "?*"
+              environment: "?*"

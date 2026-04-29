@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-service
+  namespace: tenant-a
+  labels:
+    app: api-service
+    environment: dev
+  annotations:
+    # WHY: Tells NGINX to rewrite the path — requests to /tenant-a/api
+    # get rewritten to / before forwarding to the service. Without this
+    # the app would need to handle the /tenant-a/api prefix itself.
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # CHANGE THIS to "true" when you have TLS configured via cert-manager
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: k8s-platform.local
+      # CHANGE THIS: Replace with your actual domain on AWS
+      http:
+        paths:
+          - path: /tenant-a/api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-service
+                port:
+                  name: http

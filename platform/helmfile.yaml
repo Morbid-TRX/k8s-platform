@@ -1,0 +1,80 @@
+# WHY: Helmfile lets you manage multiple Helm releases as code.
+# Instead of running 5 separate helm install commands and remembering
+# the right order, flags, and values files — you run one command:
+# helmfile apply
+# It's idempotent — safe to run multiple times, only applies changes.
+
+repositories:
+  - name: ingress-nginx
+    url: https://kubernetes.github.io/ingress-nginx
+  - name: jetstack
+    url: https://charts.jetstack.io
+  - name: argo
+    url: https://argoproj.github.io/argo-helm
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+  - name: grafana
+    url: https://grafana.github.io/helm-charts
+  - name: kyverno
+    url: https://kyverno.github.io/kyverno
+
+releases:
+  # WHY: ingress-nginx goes first — everything else depends on ingress
+  # working before their Ingress objects are created.
+  - name: ingress-nginx
+    namespace: ingress-nginx
+    createNamespace: true
+    chart: ingress-nginx/ingress-nginx
+    version: 4.9.1
+    values:
+      - ingress-nginx/values.yaml
+
+  # WHY: cert-manager goes second — it needs ingress to be up so it can
+  # complete HTTP01 ACME challenges for Let's Encrypt certificates.
+  - name: cert-manager
+    namespace: cert-manager
+    createNamespace: true
+    chart: jetstack/cert-manager
+    version: v1.14.2
+    set:
+      - name: installCRDs
+        value: true
+        # WHY: CRDs (Certificate, Issuer, ClusterIssuer) must be installed
+        # before any cert-manager resources are created. The set flag
+        # handles this automatically inside the chart.
+
+  # WHY: Kyverno goes before ArgoCD and monitoring — we want policies
+  # enforced from the start, including on platform components themselves.
+  - name: kyverno
+    namespace: kyverno
+    createNamespace: true
+    chart: kyverno/kyverno
+    version: 3.1.4
+    values:
+      - kyverno/values.yaml
+
+  # WHY: ArgoCD goes before monitoring so we can use ArgoCD to manage
+  # the monitoring stack itself via GitOps after initial bootstrap.
+  - name: argocd
+    namespace: argocd
+    createNamespace: true
+    chart: argo/argo-cd
+    version: 6.7.2
+    values:
+      - argocd/values.yaml
+
+  - name: kube-prometheus-stack
+    namespace: monitoring
+    createNamespace: true
+    chart: prometheus-community/kube-prometheus-stack
+    version: 57.1.1
+    values:
+      - prometheus-stack/values.yaml
+
+  - name: loki-stack
+    namespace: monitoring
+    createNamespace: true
+    chart: grafana/loki-stack
+    version: 2.10.2
+    values:
+      - loki-stack/values.yaml

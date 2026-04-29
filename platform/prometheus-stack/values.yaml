@@ -1,0 +1,93 @@
+# WHY: kube-prometheus-stack is a single Helm chart that installs
+# Prometheus, Grafana, and Alertmanager together with sane defaults
+# and pre-built Kubernetes dashboards. Installing them separately
+# means wiring up service discovery yourself — not worth it.
+# Full defaults: https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/values.yaml
+
+grafana:
+  enabled: true
+  adminPassword: "CHANGE-ME-use-a-secret-manager-in-prod"
+  # WHY: Hardcoded password is fine for local dev. For AWS, store this
+  # in AWS Secrets Manager and use External Secrets Operator to inject it.
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - grafana.k8s-platform.local
+    # CHANGE THIS: Update to your domain when deploying to AWS
+
+  persistence:
+    enabled: true
+    size: 5Gi
+    # WHY: Without persistence, Grafana loses all dashboards and settings
+    # every time the pod restarts. 5Gi is more than enough.
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # WHY: Pre-load these dashboards automatically so you don't have to
+  # import them manually after every fresh install.
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: Asia/Kuala_Lumpur
+  # CHANGE THIS: Update to your timezone
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    # WHY: 7 days of metrics is enough for dev. Increase to 30d for prod
+    # but be aware of storage cost — each extra day = more PVC storage.
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+              # WHY: 10Gi handles ~7 days of metrics for a small cluster.
+              # Scale up if you add more services or longer retention.
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+        # WHY: Prometheus is memory-hungry. 2Gi limit prevents it from
+        # OOMKilling on a t3.medium node with 4Gi total RAM.
+
+    # WHY: This tells Prometheus to scrape ALL namespaces, not just
+    # the one it's installed in. Required for multi-tenant monitoring.
+    podMonitorNamespaceSelector:
+      matchLabels: {}
+    serviceMonitorNamespaceSelector:
+      matchLabels: {}
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+# WHY: These exporters collect metrics from K8s system components.
+# Without them you get no node CPU/memory metrics in Grafana.
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+kubelet:
+  enabled: true

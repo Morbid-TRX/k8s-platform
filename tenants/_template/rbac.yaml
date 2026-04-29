@@ -1,0 +1,52 @@
+# WHY: RBAC (Role Based Access Control) controls who can do what
+# inside this namespace. We create a Role with limited permissions
+# and bind it to a ServiceAccount for the tenant's workloads.
+# This follows least privilege — tenant pods can only read their own
+# resources, not modify cluster-wide objects or other tenant namespaces.
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: TENANT_NAME-sa
+  namespace: TENANT_NAME
+  labels:
+    tenant: TENANT_NAME
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: TENANT_NAME-role
+  namespace: TENANT_NAME
+rules:
+  # WHY: Pods need to read their own ConfigMaps and Secrets to load config.
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+
+  # WHY: Services and endpoints needed for service discovery within namespace.
+  - apiGroups: [""]
+    resources: ["services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+
+  # WHY: Read-only pod access lets the tenant's tooling check pod status
+  # without being able to delete or modify pods in other namespaces.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: TENANT_NAME-rolebinding
+  namespace: TENANT_NAME
+subjects:
+  - kind: ServiceAccount
+    name: TENANT_NAME-sa
+    namespace: TENANT_NAME
+roleRef:
+  kind: Role
+  apiRef: rbac.authorization.k8s.io
+  name: TENANT_NAME-role

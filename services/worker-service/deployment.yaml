@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-service
+  namespace: tenant-a
+  labels:
+    app: worker-service
+    environment: dev
+spec:
+  replicas: 1
+  # WHY: Workers are stateful in the sense that each processes jobs independently.
+  # Unlike the API we don't need 2 replicas for HA — we need enough replicas
+  # to keep up with job throughput. Start with 1, scale via HPA later.
+  selector:
+    matchLabels:
+      app: worker-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: worker-service
+        environment: dev
+        tenant: tenant-a
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: tenant-a-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      containers:
+        - name: worker-service
+          image: CHANGE-ME-ECR-URL/k8s-platform-dev/worker-service:v1.0.0
+          # CHANGE THIS: Replace with your actual ECR URL from terraform output
+
+          env:
+            - name: TENANT
+              value: "tenant-a"
+            - name: ENVIRONMENT
+              value: "dev"
+            - name: APP_VERSION
+              value: "v1.0.0"
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 9000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+
+          # WHY: No readinessProbe needed — workers don't serve traffic.
+          # Readiness only matters for services behind a load balancer.
+
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+                # WHY: preStop sleep gives K8s time to remove this pod from
+                # all endpoint lists before SIGTERM is sent. Without this,
+                # in-flight requests can hit the pod after it starts shutting down.
