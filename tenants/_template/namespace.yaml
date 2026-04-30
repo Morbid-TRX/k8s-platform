@@ -6,8 +6,6 @@ kind: Namespace
 metadata:
   name: TENANT_NAME
   labels:
-    # WHY: These labels are used by NetworkPolicy selectors and Kyverno
-    # policies to identify and target this namespace.
     app.kubernetes.io/managed-by: argocd
     environment: dev
     tenant: TENANT_NAME

@@ -1,7 +1,6 @@
-# WHY: Helmfile lets you manage multiple Helm releases as code.
+# WHY: Helmfile manages multiple Helm releases as code.
 # Instead of running 5 separate helm install commands and remembering
-# the right order, flags, and values files — you run one command:
-# helmfile apply
+# the right order — you run one command: helmfile apply
 # It's idempotent — safe to run multiple times, only applies changes.
 
 repositories:
@@ -19,8 +18,6 @@ repositories:
     url: https://kyverno.github.io/kyverno
 
 releases:
-  # WHY: ingress-nginx goes first — everything else depends on ingress
-  # working before their Ingress objects are created.
   - name: ingress-nginx
     namespace: ingress-nginx
     createNamespace: true
@@ -29,8 +26,6 @@ releases:
     values:
       - ingress-nginx/values.yaml
 
-  # WHY: cert-manager goes second — it needs ingress to be up so it can
-  # complete HTTP01 ACME challenges for Let's Encrypt certificates.
   - name: cert-manager
     namespace: cert-manager
     createNamespace: true
@@ -39,12 +34,7 @@ releases:
     set:
       - name: installCRDs
         value: true
-        # WHY: CRDs (Certificate, Issuer, ClusterIssuer) must be installed
-        # before any cert-manager resources are created. The set flag
-        # handles this automatically inside the chart.
 
-  # WHY: Kyverno goes before ArgoCD and monitoring — we want policies
-  # enforced from the start, including on platform components themselves.
   - name: kyverno
     namespace: kyverno
     createNamespace: true
@@ -53,8 +43,6 @@ releases:
     values:
       - kyverno/values.yaml
 
-  # WHY: ArgoCD goes before monitoring so we can use ArgoCD to manage
-  # the monitoring stack itself via GitOps after initial bootstrap.
   - name: argocd
     namespace: argocd
     createNamespace: true

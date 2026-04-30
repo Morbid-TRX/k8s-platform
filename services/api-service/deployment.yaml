@@ -8,8 +8,7 @@ metadata:
     environment: dev
 spec:
   replicas: 2
-  # WHY: 2 replicas minimum for zero-downtime deployments. With 1 replica,
-  # rolling updates cause a brief outage as the old pod is replaced.
+  # WHY: 2 replicas minimum for zero-downtime deployments.
   selector:
     matchLabels:
       app: api-service
@@ -18,9 +17,7 @@ spec:
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 0
-      # WHY: maxUnavailable=0 means never kill an old pod before a new one
-      # is healthy. maxSurge=1 allows one extra pod during the rollout.
-      # Together: zero downtime deployments guaranteed.
+      # WHY: maxUnavailable=0 guarantees zero downtime during rollouts.
   template:
     metadata:
       labels:
@@ -32,18 +29,14 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
-        # WHY: Matches the appuser UID we created in the Dockerfile.
-        # Kyverno policy disallow-root-user enforces this is set.
         fsGroup: 1000
-
       containers:
         - name: api-service
-          image: CHANGE-ME-ECR-URL/k8s-platform-dev/api-service:v1.0.0
           # CHANGE THIS: Replace with your actual ECR URL from terraform output
+          image: CHANGE-ME-ECR-URL/k8s-platform-dev/api-service:v1.0.0
           ports:
             - containerPort: 8000
               name: http
-
           env:
             - name: TENANT
               value: "tenant-a"
@@ -51,7 +44,6 @@ spec:
               value: "dev"
             - name: APP_VERSION
               value: "v1.0.0"
-
           resources:
             requests:
               cpu: 100m
@@ -59,7 +51,6 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
-
           livenessProbe:
             httpGet:
               path: /health
@@ -67,10 +58,6 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 30
             failureThreshold: 3
-            # WHY: initialDelaySeconds=10 gives the app time to start before
-            # K8s starts checking. Too low and the probe fails before the
-            # app is ready and K8s restarts it in a crash loop.
-
           readinessProbe:
             httpGet:
               path: /ready
@@ -78,9 +65,7 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
             failureThreshold: 3
-
-      # WHY: Spread pods across different nodes so one node failure
-      # doesn't take down both replicas simultaneously.
+      # WHY: Spread pods across nodes so one node failure doesn't take down both replicas.
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname

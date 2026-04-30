@@ -1,24 +1,19 @@
 # WHY: One ECR repo per service keeps image namespacing clean and lets you
-# set different lifecycle policies per service. e.g. keep more api-service
-# images than worker images for rollback safety.
+# set different lifecycle policies per service.
 
 resource "aws_ecr_repository" "services" {
   for_each             = toset(var.services)
   name                 = "${var.cluster_name}/${each.key}"
   image_tag_mutability = "IMMUTABLE"
-  # WHY: IMMUTABLE prevents the same tag (e.g. v1.0.0) being overwritten.
-  # Mutable tags are a footgun — you can deploy "v1.0.0" and silently get
-  # a different image than yesterday.
+  # WHY: IMMUTABLE prevents the same tag being overwritten — mutable tags
+  # mean you can deploy "v1.0.0" and silently get a different image.
 
   image_scanning_configuration {
     scan_on_push = true
-    # WHY: Free ECR basic scanning catches known CVEs on every push.
-    # Not a substitute for Trivy in CI but a free safety net.
   }
 
   encryption_configuration {
     encryption_type = "KMS"
-    # WHY: KMS gives an audit trail of who decrypted which image and when.
   }
 
   tags = merge(var.tags, { Service = each.key })

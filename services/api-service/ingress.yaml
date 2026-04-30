@@ -7,12 +7,9 @@ metadata:
     app: api-service
     environment: dev
   annotations:
-    # WHY: Tells NGINX to rewrite the path — requests to /tenant-a/api
-    # get rewritten to / before forwarding to the service. Without this
-    # the app would need to handle the /tenant-a/api prefix itself.
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    # CHANGE THIS to "true" when you have TLS configured via cert-manager
+    # CHANGE THIS to "true" when TLS is configured via cert-manager
 spec:
   ingressClassName: nginx
   rules:

@@ -3,11 +3,8 @@
 # THREE separate roles and they're easy to mix up.
 #
 # Role 1 — eks_cluster_role: used BY the EKS control plane to call AWS APIs
-#           (create ENIs, describe EC2, manage LBs on your behalf)
 # Role 2 — eks_node_role: used BY EC2 worker nodes to pull ECR images
-#           and register with the cluster
 # Role 3 — IRSA roles: used BY pods to access specific AWS services
-#           without giving every pod full node-level permissions
 
 terraform {
   required_providers {
@@ -15,8 +12,6 @@ terraform {
     tls = { source = "hashicorp/tls", version = "~> 4.0" }
   }
 }
-
-# ── Control Plane Role ───────────────────────────────────────────────────────
 
 resource "aws_iam_role" "eks_cluster" {
   name = "${var.cluster_name}-cluster-role"
@@ -38,18 +33,12 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-# ── KMS Key for Secret Encryption ───────────────────────────────────────────
-
 resource "aws_kms_key" "eks" {
   description             = "EKS Secret Encryption - ${var.cluster_name}"
   deletion_window_in_days = 7
   enable_key_rotation     = true
-  # WHY: Rotating the key annually is a security best practice and
-  # costs nothing extra. Disable only if you have a specific reason.
-  tags = var.tags
+  tags                    = var.tags
 }
-
-# ── EKS Cluster ─────────────────────────────────────────────────────────────
 
 resource "aws_eks_cluster" "main" {
   name     = var.cluster_name
@@ -61,8 +50,8 @@ resource "aws_eks_cluster" "main" {
     endpoint_private_access = true
     # WHY: Public access lets you run kubectl from your laptop.
     # CHANGE THIS to false in production — use a bastion or VPN instead.
-    endpoint_public_access  = true
-    public_access_cidrs     = var.allowed_cidr_blocks
+    endpoint_public_access = true
+    public_access_cidrs    = var.allowed_cidr_blocks
   }
 
   encryption_config {
@@ -74,16 +63,13 @@ resource "aws_eks_cluster" "main" {
     resources = ["secrets"]
   }
 
-  # WHY: These three log types catch the most important events:
-  # api = all API calls, audit = who did what, authenticator = IAM auth issues.
+  # WHY: api = all API calls, audit = who did what, authenticator = IAM auth issues.
   # scheduler and controllerManager are verbose — enable only for deep debugging.
   enabled_cluster_log_types = ["api", "audit", "authenticator"]
 
   depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]
   tags       = var.tags
 }
-
-# ── Node Group Role ──────────────────────────────────────────────────────────
 
 resource "aws_iam_role" "eks_nodes" {
   name = "${var.cluster_name}-node-role"
@@ -118,8 +104,6 @@ resource "aws_iam_role_policy_attachment" "node_cni" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
-# ── Node Group ───────────────────────────────────────────────────────────────
-
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-nodes"
@@ -134,7 +118,6 @@ resource "aws_eks_node_group" "main" {
   scaling_config {
     desired_size = var.node_desired
     min_size     = var.node_min
-    # WHY: max=5 gives Karpenter room to burst without runaway costs.
     max_size     = var.node_max
   }
 
@@ -144,7 +127,6 @@ resource "aws_eks_node_group" "main" {
   }
 
   # WHY: AL2 not AL2023 — most Helm charts are tested against AL2.
-  # AL2023 has breaking changes in some tooling as of 2024.
   ami_type = "AL2_x86_64"
 
   depends_on = [
@@ -156,12 +138,9 @@ resource "aws_eks_node_group" "main" {
   tags = var.tags
 }
 
-# ── OIDC Provider ────────────────────────────────────────────────────────────
-# WHY: IRSA (IAM Roles for Service Accounts) lets individual pods assume
-# IAM roles without sharing node-level credentials. This is how ArgoCD,
-# External Secrets, and Karpenter authenticate to AWS securely.
-# Without this, you'd have to give every pod on the node full AWS access.
-
+# WHY: IRSA lets individual pods assume IAM roles without sharing node-level
+# credentials. This is how ArgoCD, External Secrets, and Karpenter
+# authenticate to AWS securely.
 data "tls_certificate" "eks" {
   url = aws_eks_cluster.main.identity[0].oidc[0].issuer
 }

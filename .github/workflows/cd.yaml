@@ -5,13 +5,9 @@ on:
     branches: [main]
     paths:
       - "services/**"
-      # WHY: Only trigger CD when service code changes — not when we
-      # edit docs, platform configs, or tenant manifests. Saves build
-      # minutes and avoids unnecessary image pushes.
 
 env:
   AWS_REGION: ap-southeast-1
-  # CHANGE THIS: Update to your AWS region
 
 jobs:
   build-and-push:
@@ -20,14 +16,9 @@ jobs:
     strategy:
       matrix:
         service: [api-service, worker-service]
-        # WHY: Matrix builds both services in parallel — halves the
-        # total build time compared to building sequentially.
 
     permissions:
       id-token: write
-      # WHY: id-token:write is required for OIDC authentication to AWS.
-      # This lets GitHub Actions assume an IAM role without storing
-      # AWS credentials as secrets — much more secure.
       contents: read
 
     steps:
@@ -38,9 +29,6 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          # WHY: OIDC role assumption instead of access keys. Access keys
-          # are long-lived credentials — if leaked, attacker has permanent
-          # access. OIDC tokens expire after 1 hour automatically.
 
       - name: Login to ECR
         id: ecr-login
@@ -50,9 +38,6 @@ jobs:
         id: tag
         run: |
           echo "IMAGE_TAG=v$(date +'%Y%m%d')-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-          # WHY: Tag format = vYYYYMMDD-SHORTSHA e.g. v20240315-abc1234
-          # Date prefix makes tags chronologically sortable.
-          # Short SHA links the image back to the exact commit it was built from.
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -64,22 +49,14 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/k8s-platform-dev/${{ matrix.service }}:latest-dev
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # WHY: GitHub Actions cache for Docker layers — subsequent builds
-          # only rebuild changed layers. Cuts build time by 60-80% after
-          # the first run.
 
       - name: Update image tag in manifests
         run: |
           sed -i "s|:v.*|:${{ steps.tag.outputs.IMAGE_TAG }}|g" \
             services/${{ matrix.service }}/deployment.yaml
-          # WHY: Updates the image tag in the deployment manifest so ArgoCD
-          # picks up the new image automatically on the next sync.
 
       - name: Commit updated manifests
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update ${{ matrix.service }} image to ${{ steps.tag.outputs.IMAGE_TAG }}"
           file_pattern: "services/${{ matrix.service }}/deployment.yaml"
-          # WHY: This is the GitOps pattern — CI updates the manifest in Git,
-          # ArgoCD detects the change and deploys it. The Git repo is always
-          # the source of truth for what's running in the cluster.

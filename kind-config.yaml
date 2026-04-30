@@ -20,13 +20,9 @@ nodes:
       - containerPort: 80
         hostPort: 80
         protocol: TCP
-        # WHY: Maps localhost:80 → NGINX inside the cluster.
-        # This is how you'll access ArgoCD, Grafana etc in your browser.
       - containerPort: 443
         hostPort: 443
         protocol: TCP
 
   - role: worker
   - role: worker
-  # WHY: 2 workers lets us test pod spreading across nodes —
-  # the topologySpreadConstraints in our deployments actually work.
