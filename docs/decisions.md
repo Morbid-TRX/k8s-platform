@@ -70,3 +70,49 @@ This document explains the key decisions made in this project and why.
 - `---` document start is optional in YAML — enforcing it everywhere is pedantic
 - 120 char line limit is too short for GitHub Actions expressions
 - Configure the tool to match the project, not the other way around
+
+---
+
+## ADR-007: Direct pushes to main for solo developer
+
+**Decision**: Allow direct pushes to main in some cases
+**Why**:
+- Branch protection requires at least 1 approver to merge a PR
+- As a solo developer you cannot approve your own PRs
+- Workaround: untick "Do not allow bypassing" so repo owner can push directly
+- In a real team this would be locked down — every change goes through PR + review
+
+---
+
+## ADR-008: imagePullPolicy: Never for local kind development
+
+**Decision**: Use locally built images with imagePullPolicy: Never
+**Alternatives considered**: LocalStack ECR, kind registry
+**Why**:
+- kind clusters cannot pull from ECR without real AWS credentials
+- Building locally and loading with `kind load docker-image` is the fastest iteration loop
+- imagePullPolicy: Never tells K8s to never attempt a registry pull
+- CHANGE THIS to IfNotPresent or Always when deploying to EKS with real ECR URLs
+
+---
+
+## ADR-009: Single replica for worker-service
+
+**Decision**: worker-service runs with replicas: 1
+**Alternatives considered**: replicas: 2 with leader election
+**Why**:
+- Worker processes jobs sequentially — multiple replicas would process the same jobs
+- In production with a real queue (SQS, Kafka), you'd scale workers based on queue depth via KEDA
+- HPA is not applied to worker-service for the same reason — scale based on queue, not CPU
+
+---
+
+## ADR-010: Kyverno over OPA/Gatekeeper
+
+**Decision**: Kyverno for policy enforcement
+**Alternatives considered**: OPA Gatekeeper, Pod Security Admission
+**Why**:
+- Kyverno policies are plain YAML — no need to learn Rego
+- Better docs and more active community as of 2024
+- Pod Security Admission is built-in but less flexible — can't enforce custom rules like required labels
+- OPA is more powerful but overkill for this project scope
