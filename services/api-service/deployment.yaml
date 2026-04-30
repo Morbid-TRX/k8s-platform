@@ -33,7 +33,10 @@ spec:
       containers:
         - name: api-service
           # CHANGE THIS: Replace with your actual ECR URL from terraform output
-          image: CHANGE-ME-ECR-URL/k8s-platform-dev/api-service:v1.0.0
+          image: k8s-platform/api-service:v1.0.0
+          imagePullPolicy: Never
+          # WHY: Never means K8s uses the locally loaded image instead of
+          # trying to pull from a registry. Required for kind local development.
           ports:
             - containerPort: 8000
               name: http

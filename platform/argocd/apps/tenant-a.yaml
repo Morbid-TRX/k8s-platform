@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tenant-a
+  namespace: argocd
+  labels:
+    app: tenant-a
+    environment: dev
+spec:
+  project: default
+
+  source:
+    # CHANGE THIS: Update to your actual GitHub repo URL
+    repoURL: https://github.com/Morbid-TRX/k8s-platform.git
+    targetRevision: main
+    path: tenants/tenant-a
+    # WHY: ArgoCD watches this specific path in the repo.
+    # Any change to files under tenants/tenant-a triggers a sync.
+
+  destination:
+    server: https://kubernetes.default.svc
+    # WHY: kubernetes.default.svc is the in-cluster API server address.
+    # ArgoCD uses this to deploy to the same cluster it's running in.
+    namespace: tenant-a
+
+  syncPolicy:
+    automated:
+      prune: true
+      # WHY: prune=true means ArgoCD deletes resources that exist in the
+      # cluster but are no longer in Git. Git is the source of truth —
+      # if you remove a file, the resource gets removed from the cluster.
+      selfHeal: true
+      # WHY: selfHeal=true means if someone manually changes something in
+      # the cluster (kubectl edit, etc), ArgoCD reverts it back to what's
+      # in Git. Enforces GitOps discipline.
+    syncOptions:
+      - CreateNamespace=true
