@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-b
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    environment: dev
+    tenant: tenant-b
