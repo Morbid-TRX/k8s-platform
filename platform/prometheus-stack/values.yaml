@@ -6,7 +6,7 @@
 ---
 grafana:
   enabled: true
-  # WHY: Hardcoded password is fine for local dev. For AWS, store this  # yamllint disable-line rule:comments-indentation
+  # WHY: Hardcoded password is fine for local dev. For AWS, store this  # yamllint disable-line rule:line-length rule:comments-indentation
   # in AWS Secrets Manager and use External Secrets Operator to inject it.
   adminPassword: "CHANGE-ME-use-a-secret-manager-in-prod"
 
@@ -15,7 +15,7 @@ grafana:
     ingressClassName: nginx
     hosts:
       - grafana.k8s-platform.local
-    # CHANGE THIS: Update to your domain when deploying to AWS
+    # CHANGE THIS: Update to your domain when deploying to AWS  # yamllint disable-line rule:comments-indentation
 
   persistence:
     enabled: true
