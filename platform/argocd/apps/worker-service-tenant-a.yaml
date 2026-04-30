@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: worker-service-tenant-a
+  namespace: argocd
+  labels:
+    app: worker-service-tenant-a
+    environment: dev
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Morbid-TRX/k8s-platform.git
+    targetRevision: main
+    path: services/worker-service
+    # WHY: Separate ArgoCD app per service — api and worker can be
+    # deployed independently without affecting each other.
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tenant-a
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
