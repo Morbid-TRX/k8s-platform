@@ -59,8 +59,8 @@ jobs:
         with:
           context: services/${{ matrix.service }}
           push: true
-          tags: |
-            ${{ steps.ecr-login.outputs.registry }}/k8s-platform-dev/${{ matrix.service }}:${{ steps.tag.outputs.IMAGE_TAG }}
+          tags: >-
+            ${{ steps.ecr-login.outputs.registry }}/k8s-platform-dev/${{ matrix.service }}:${{ steps.tag.outputs.IMAGE_TAG }},
             ${{ steps.ecr-login.outputs.registry }}/k8s-platform-dev/${{ matrix.service }}:latest-dev
           cache-from: type=gha
           cache-to: type=gha,mode=max
