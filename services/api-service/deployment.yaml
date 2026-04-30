@@ -7,7 +7,7 @@ metadata:
     app: api-service
     environment: dev
 spec:
-  replicas: 2
+  replicas: 1
   # WHY: 2 replicas minimum for zero-downtime deployments.
   selector:
     matchLabels:
@@ -69,10 +69,3 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
       # WHY: Spread pods across nodes so one node failure doesn't take down both replicas.
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: DoNotSchedule
-          labelSelector:
-            matchLabels:
-              app: api-service
