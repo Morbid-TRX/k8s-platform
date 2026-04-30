@@ -1,23 +1,18 @@
-# WHY: Loki is Grafana's log aggregation tool. It works like Prometheus
-# but for logs instead of metrics. The key advantage over ELK stack is
-# it doesn't index log content — only labels — so it's much cheaper on
-# storage and memory. Perfect for a small cluster.
+# WHY: Loki aggregates logs without indexing content — only labels.
+# Much cheaper on storage and memory than ELK. Perfect for a small cluster.
 # Full defaults: https://github.com/grafana/helm-charts/blob/main/charts/loki-stack/values.yaml
----
+
 loki:
   enabled: true
 
   persistence:
     enabled: true
     size: 10Gi
-    # WHY: Logs grow fast. 10Gi gives you roughly 7 days of logs for a
-    # small cluster. Increase for longer retention or more services.
 
   config:
     auth_enabled: false
-    # WHY: Multi-tenancy auth in Loki is for SaaS scenarios where multiple
-    # separate orgs share one Loki. For our single-team setup it adds
-    # complexity with no benefit.
+    # WHY: Multi-tenancy auth is for SaaS scenarios with separate orgs.
+    # For our single-team setup it adds complexity with no benefit.
 
     ingester:
       chunk_idle_period: 3m
@@ -37,7 +32,7 @@ loki:
       filesystem:
         directory: /data/loki/chunks
         # WHY: Filesystem storage is fine for local and single-node dev.
-        # CHANGE THIS to S3 for production — much cheaper and durable.
+        # CHANGE THIS to S3 for production:
         # s3:
         #   bucketnames: CHANGE-ME-loki-chunks
         #   region: ap-southeast-1
@@ -52,9 +47,7 @@ loki:
 
 promtail:
   enabled: true
-  # WHY: Promtail is the log collector — runs as a DaemonSet on every node
-  # and ships logs to Loki. Think of it as Fluent Bit but tightly integrated
-  # with Loki so you get automatic label discovery with no extra config.
+  # WHY: Promtail runs as a DaemonSet on every node and ships logs to Loki.
 
   config:
     clients:
@@ -63,9 +56,8 @@ promtail:
     snippets:
       pipelineStages:
         - cri: {}
-        # WHY: cri stage parses the Container Runtime Interface log format
-        # that Kubernetes uses. Without this, logs come in as raw strings
-        # with no timestamp or stream (stdout/stderr) parsing.
+        # WHY: cri stage parses the Container Runtime Interface log format.
+        # Without this, logs come in as raw strings with no timestamp parsing.
 
   resources:
     requests:
@@ -78,12 +70,8 @@ promtail:
   tolerations:
     - effect: NoSchedule
       operator: Exists
-      # WHY: DaemonSets need this toleration to run on ALL nodes including
-      # control plane nodes that have NoSchedule taints. Without it,
-      # some nodes won't ship logs.
+      # WHY: DaemonSets need this to run on ALL nodes including control plane.
 
 grafana:
-  # WHY: Disabled here — we already installed Grafana via prometheus-stack.
-  # Loki gets added as a data source in Grafana separately.
-  # Enabling it here would create a second conflicting Grafana instance.
+  # WHY: Disabled — already installed via prometheus-stack.
   enabled: false

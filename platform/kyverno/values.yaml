@@ -1,14 +1,12 @@
 # WHY: Kyverno is a Kubernetes-native policy engine. It intercepts every
 # resource creation/update via admission webhooks and either blocks it,
 # mutates it, or audits it based on your policies.
-# Alternative is OPA/Gatekeeper but Kyverno policies are plain YAML —
-# no need to learn Rego (a separate policy language). Much friendlier.
 # Full defaults: https://github.com/kyverno/kyverno/blob/main/charts/kyverno/values.yaml
----
-replicaCount: 1
+
 # CHANGE THIS to 3 for production — single replica is a single point
 # of failure for your admission webhook. If Kyverno crashes, pod creation
 # blocks cluster-wide until it recovers.
+replicaCount: 1
 
 resources:
   requests:
@@ -18,10 +16,9 @@ resources:
     cpu: 500m
     memory: 512Mi
 
-# WHY: These settings control what happens if Kyverno itself goes down.
-# failurePolicy: Ignore means pod creation still works even if Kyverno
-# is unavailable. For production set to Fail so no policy bypass is
-# possible — but only after you have 3 replicas for HA.
+# WHY: failurePolicy Ignore means pod creation still works even if Kyverno
+# is unavailable. For production set to Fail — but only after you have
+# 3 replicas for HA.
 config:
   webhooks:
     - failurePolicy: Ignore
@@ -29,9 +26,8 @@ config:
         matchExpressions:
           - key: kubernetes.io/metadata.name
             operator: NotIn
+            # WHY: Exclude system namespaces — applying policies here can
+            # break core K8s components during upgrades.
             values:
               - kube-system
               - kyverno
-              # WHY: Exclude kube-system and kyverno namespace from webhook.
-              # Applying policies to system namespaces can break core K8s
-              # components during upgrades.

@@ -1,8 +1,3 @@
-# WHY: Worker service runs as a background job processor — no HTTP server.
-# It simulates processing tasks from a queue. In production this would
-# read from SQS, Kafka, or Redis. Kept simple here to focus on K8s concepts
-# like CronJobs, resource limits, and graceful shutdown.
-
 import time
 import os
 import signal
@@ -27,9 +22,8 @@ SHUTDOWN = False
 
 
 def handle_shutdown(signum, frame):
-    # WHY: Graceful shutdown — when K8s sends SIGTERM (during rolling update
-    # or scale down), we set SHUTDOWN=True and finish the current job before
-    # exiting. Without this, jobs get cut off mid-processing on every deploy.
+    # WHY: Graceful shutdown — finish the current job before exiting.
+    # Without this, jobs get cut off mid-processing on every deploy.
     global SHUTDOWN
     log.info("Received shutdown signal, finishing current job...")
     SHUTDOWN = True
@@ -41,15 +35,13 @@ signal.signal(signal.SIGINT, handle_shutdown)
 
 def process_job(job_id: int):
     log.info(f"Processing job {job_id} for tenant {TENANT}")
-    # Simulate work
     time.sleep(2)
     JOBS_PROCESSED.labels(status="success", tenant=TENANT).inc()
     log.info(f"Job {job_id} completed")
 
 
 if __name__ == "__main__":
-    # WHY: Expose metrics on port 9000 so Prometheus can scrape the worker
-    # even though it has no HTTP server. Uses a separate thread.
+    # WHY: Expose metrics on port 9000 so Prometheus can scrape the worker.
     start_http_server(9000)
     log.info(f"Worker started — tenant={TENANT} environment={ENVIRONMENT}")
 

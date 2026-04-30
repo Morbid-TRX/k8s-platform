@@ -44,9 +44,9 @@ This document explains the key decisions made in this project and why.
 **Decision**: Helm for platform (ArgoCD, Prometheus), raw YAML for services
 **Alternatives considered**: Helm for everything, Kustomize
 **Why**:
-- Platform tools (ArgoCD, Prometheus) have official Helm charts — no reason to reinvent
+- Platform tools have official Helm charts — no reason to reinvent
 - Raw YAML for our own services keeps things readable and explicit
-- Kustomize is good but adds a learning curve without much benefit at this stage
+- Kustomize adds a learning curve without much benefit at this stage
 
 ---
 
@@ -58,3 +58,15 @@ This document explains the key decisions made in this project and why.
 - EKS control plane costs $72/mo even with zero workloads
 - Local kind cluster is free and fast to iterate on
 - Same manifests work on both — only the ingress and storage classes differ
+
+---
+
+## ADR-006: Configure yamllint rules to match project standards
+
+**Decision**: Disable document-start, truthy, comments-indentation rules. Set line-length to 150.
+**Alternatives considered**: Fix every file to match default yamllint rules
+**Why**:
+- GitHub Actions uses `on:` which yamllint flags as truthy but is 100% valid
+- `---` document start is optional in YAML — enforcing it everywhere is pedantic
+- 120 char line limit is too short for GitHub Actions expressions
+- Configure the tool to match the project, not the other way around

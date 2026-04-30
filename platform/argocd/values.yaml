@@ -1,9 +1,8 @@
 # WHY: These are overrides for the official ArgoCD Helm chart.
 # We only specify what we want to change — everything else uses chart defaults.
-# Full default values: https://github.com/argoproj/argo-helm/blob/main/charts/argo-cd/values.yaml
----
+# Full defaults: https://github.com/argoproj/argo-helm/blob/main/charts/argo-cd/values.yaml
+
 global:
-  # CHANGE THIS: your domain if you have one, otherwise leave as-is for local
   domain: argocd.k8s-platform.local
 
 configs:
@@ -14,15 +13,12 @@ configs:
     server.insecure: true
 
   cm:
-    # WHY: Tells ArgoCD to use our GitHub repo as the source of truth.
-    # CHANGE THIS: Update to your actual GitHub repo URL.
     url: https://argocd.k8s-platform.local
     application.instanceLabelKey: argocd.argoproj.io/app-name
 
   rbac:
     # WHY: policy.default=role:readonly means anyone who logs in gets
     # read-only access by default. Only admins can make changes.
-    # Follows principle of least privilege.
     policy.default: role:readonly
 
 server:
@@ -31,12 +27,8 @@ server:
     ingressClassName: nginx
     hostname: argocd.k8s-platform.local
     tls: false
-    # WHY: TLS false here because NGINX ingress handles TLS termination.
-    # ArgoCD itself runs HTTP internally.
 
   resources:
-    # WHY: These limits prevent ArgoCD from starving other workloads
-    # on a small cluster. Increase limits if ArgoCD feels slow.
     requests:
       cpu: 100m
       memory: 128Mi
@@ -64,5 +56,4 @@ applicationSet:
 
 notifications:
   # WHY: Disabled for now — notifications need a Slack/email config.
-  # Enable later when you have a webhook URL to point it at.
   enabled: false

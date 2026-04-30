@@ -1,7 +1,3 @@
-# WHY: Simple FastAPI app — gives us a real HTTP service to deploy
-# without overcomplicating the K8s learning. The endpoints are designed
-# to demonstrate health checks, metrics, and inter-service communication.
-
 from fastapi import FastAPI
 from prometheus_client import Counter, Histogram, generate_latest
 from prometheus_client import CONTENT_TYPE_LATEST
@@ -11,8 +7,6 @@ import os
 
 app = FastAPI(title="API Service", version="1.0.0")
 
-# WHY: Prometheus counters and histograms let Grafana show request rate,
-# error rate, and latency — the three golden signals for any service.
 REQUEST_COUNT = Counter(
     "api_requests_total",
     "Total request count",
@@ -43,24 +37,19 @@ async def root():
 
 @app.get("/health")
 async def health():
-    # WHY: Kubernetes liveness probe hits this endpoint. If it returns
-    # non-200, K8s restarts the pod. Keep it simple — just confirm
-    # the app is running, not that dependencies are healthy.
+    # WHY: Liveness probe — if non-200, K8s restarts the pod.
     return {"status": "healthy"}
 
 
 @app.get("/ready")
 async def ready():
     # WHY: Readiness probe — K8s only sends traffic to pods that pass this.
-    # Unlike liveness, readiness can check dependencies (DB, cache).
-    # If not ready, pod is removed from Service endpoints but not restarted.
     return {"status": "ready"}
 
 
 @app.get("/metrics")
 async def metrics():
-    # WHY: Prometheus scrapes this endpoint to collect custom app metrics.
-    # The ServiceMonitor in deployment.yaml tells Prometheus where to find it.
+    # WHY: Prometheus scrapes this endpoint for custom app metrics.
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 

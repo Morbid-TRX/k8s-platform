@@ -1,10 +1,6 @@
-# WHY: By default Kubernetes allows ALL pods to talk to ALL other pods
-# across ALL namespaces. This is a huge security risk in a multi-tenant
-# setup — tenant-a could directly call tenant-b's internal APIs.
-# These policies implement a default-deny stance and only open what's needed.
-
+# WHY: By default K8s allows ALL pods to talk to ALL other pods across ALL
+# namespaces. These policies implement a default-deny stance.
 ---
-# Step 1: Block all ingress and egress by default
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -15,11 +11,8 @@ spec:
   policyTypes:
     - Ingress
     - Egress
-
 ---
-# Step 2: Allow ingress only from the NGINX ingress controller
-# WHY: Tenant pods should only receive traffic via the ingress — not
-# directly from other namespaces or pods.
+# WHY: Tenant pods should only receive traffic via the ingress controller.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -34,11 +27,8 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: ingress-nginx
-
 ---
-# Step 3: Allow pods to talk to each other within the same namespace
-# WHY: Services within a tenant (e.g. api-service calling worker-service)
-# need to communicate internally. This opens intra-namespace traffic only.
+# WHY: Services within a tenant need to communicate internally.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -55,12 +45,8 @@ spec:
   egress:
     - to:
         - podSelector: {}
-
 ---
-# Step 4: Allow DNS resolution
-# WHY: Without this egress rule pods can't resolve service names like
-# "api-service.tenant-a.svc.cluster.local" — DNS breaks and services
-# can't find each other even within the same namespace.
+# WHY: Without this pods can't resolve service names — DNS breaks.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

@@ -1,7 +1,6 @@
----
 name: CI
 
-on:  # yamllint disable-line rule:truthy
+on:
   push:
     branches: ["**"]
   pull_request:
@@ -33,9 +32,11 @@ jobs:
             extends: default
             rules:
               line-length:
-                max: 120
-              truthy:
-                allowed-values: ["true", "false"]
+                max: 150
+                level: warning
+              document-start: disable
+              truthy: disable
+              comments-indentation: disable
 
   lint-helm:
     name: lint helm charts

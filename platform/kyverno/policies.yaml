@@ -1,9 +1,7 @@
 # WHY: These are the cluster-wide security policies Kyverno enforces.
-# Each policy targets all namespaces except kube-system.
 # Action = enforce means non-compliant resources are BLOCKED.
 # Action = audit means they're ALLOWED but flagged — use audit first
 # to find violations before switching to enforce.
-
 ---
 # WHY: Containers running as root can escape to the host if there's a
 # container runtime vulnerability. This policy blocks it at admission time.
@@ -26,11 +24,9 @@ spec:
             containers:
               - securityContext:
                   runAsNonRoot: true
-
 ---
 # WHY: The 'latest' tag means your deployment pulls a different image every
 # time a pod restarts — zero reproducibility, impossible to roll back.
-# This policy forces all images to use explicit version tags like v1.2.3.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -51,11 +47,9 @@ spec:
               - image: "*:*"
             initContainers:
               - image: "*:*"
-
 ---
-# WHY: Without resource requests, the K8s scheduler can't make good placement
-# decisions. Without limits, one bad pod can consume all node resources and
-# evict everything else. This policy enforces both.
+# WHY: Without resource requests the scheduler can't make good placement
+# decisions. Without limits, one bad pod can consume all node resources.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -72,9 +66,9 @@ spec:
                 matchExpressions:
                   - key: kubernetes.io/metadata.name
                     operator: NotIn
+                    # WHY: Platform namespaces excluded — resource requirements
+                    # managed by their own Helm chart values.
                     values: [kube-system, kyverno, monitoring, argocd]
-                    # WHY: Platform namespaces are excluded — their resource
-                    # requirements are managed by their own Helm chart values.
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         pattern:
@@ -87,11 +81,10 @@ spec:
                   limits:
                     cpu: "?*"
                     memory: "?*"
-
 ---
 # WHY: Labels are how you identify, query, and route traffic to pods.
-# Without app and environment labels, kubectl queries, Prometheus scraping,
-# and NetworkPolicy selectors all break or return incomplete results.
+# Without app and environment labels, kubectl queries and NetworkPolicy
+# selectors break or return incomplete results.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:

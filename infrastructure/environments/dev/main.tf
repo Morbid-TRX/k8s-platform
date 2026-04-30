@@ -1,6 +1,6 @@
-# WHY: We use a separate directory per environment instead of workspaces.
-# Workspaces share a backend and it's too easy to run apply against the
-# wrong environment. Separate directories = separate state files = safer.
+# WHY: Separate directory per environment instead of workspaces.
+# Workspaces share a backend — too easy to run apply against the wrong env.
+# Separate directories = separate state files = safer.
 
 terraform {
   required_version = ">= 1.6.0"
@@ -13,7 +13,6 @@ terraform {
   }
 
   # WHY: Remote state in S3 means everyone shares the same state file.
-  # No one accidentally destroys infra because they had stale local state.
   # CHANGE THIS: Update bucket and table names before running terraform init.
   # Run first:
   #   aws s3 mb s3://YOUR-BUCKET-NAME --region ap-southeast-1
@@ -48,16 +47,12 @@ locals {
   }
 }
 
-# ── VPC ──────────────────────────────────────────────────────────────────────
-
 module "vpc" {
   source       = "../../modules/vpc"
   cluster_name = local.cluster_name
   vpc_cidr     = var.vpc_cidr
   tags         = local.common_tags
 }
-
-# ── EKS ──────────────────────────────────────────────────────────────────────
 
 module "eks" {
   source             = "../../modules/eks"
@@ -71,8 +66,6 @@ module "eks" {
   tags               = local.common_tags
 }
 
-# ── ECR ──────────────────────────────────────────────────────────────────────
-
 module "ecr" {
   source       = "../../modules/ecr"
   cluster_name = local.cluster_name
@@ -80,11 +73,9 @@ module "ecr" {
   tags         = local.common_tags
 }
 
-# ── Kubernetes + Helm providers ───────────────────────────────────────────────
 # WHY: Configured AFTER EKS is created using its outputs.
 # Using exec instead of a static token means auth stays fresh —
 # static tokens expire, exec tokens are regenerated on each call.
-
 provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_ca_certificate)

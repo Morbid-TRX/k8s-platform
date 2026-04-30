@@ -11,7 +11,4 @@ COPY main.py .
 
 USER appuser
 
-# WHY: No EXPOSE needed — worker doesn't accept inbound connections.
-# Port 9000 for metrics is opened by prometheus_client internally.
-
 CMD ["python", "main.py"]

@@ -1,22 +1,15 @@
-# WHY: NGINX Ingress Controller is the most widely used ingress for K8s.
-# It runs as a pod inside your cluster and watches Ingress resources —
-# when you create an Ingress object, NGINX automatically configures routing.
-# Alternative is AWS ALB Ingress Controller but that only works on EKS
-# and costs money per ALB. NGINX works identically local and on AWS.
+# WHY: NGINX Ingress Controller watches Ingress resources and configures
+# routing automatically. Works identically local and on AWS.
 # Full defaults: https://github.com/kubernetes/ingress-nginx/blob/main/charts/ingress-nginx/values.yaml
----
-controller:
-  # WHY: NodePort for local (kind) — no external load balancer exists locally.
-  # CHANGE THIS to LoadBalancer when deploying to AWS EKS — AWS will
-  # automatically provision an NLB and assign a public IP.
-  service:
-    type: NodePort
-    # type: LoadBalancer  ← uncomment this for AWS, comment out NodePort
 
-  # WHY: These annotations tell the AWS Load Balancer Controller to create
-  # an NLB (Network Load Balancer) instead of the older CLB.
-  # NLB is faster, cheaper, and supports TLS passthrough.
-  # Uncomment when deploying to AWS.
+controller:
+  service:
+    # WHY: NodePort for local (kind) — no external load balancer exists locally.
+    # CHANGE THIS to LoadBalancer when deploying to AWS EKS.
+    type: NodePort
+    # type: LoadBalancer
+
+  # Uncomment for AWS:
   # annotations:
   #   service.beta.kubernetes.io/aws-load-balancer-type: nlb
   #   service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
@@ -29,33 +22,19 @@ controller:
       cpu: 500m
       memory: 512Mi
 
-  # WHY: Metrics endpoint lets Prometheus scrape NGINX stats —
-  # request rate, error rate, latency percentiles. Essential for dashboards.
   metrics:
     enabled: true
     serviceMonitor:
       enabled: true
-      # WHY: ServiceMonitor tells Prometheus operator to scrape this service.
-      # Without it you'd have to manually add a scrape config.
 
   config:
     # WHY: Passes the real client IP through to your services.
-    # Without this, all requests appear to come from the NGINX pod IP.
     use-forwarded-headers: "true"
     compute-full-forwarded-for: "true"
     use-proxy-protocol: "false"
 
-    # WHY: Logs include request ID for distributed tracing correlation.
-    log-format-upstream: '$remote_addr - $remote_user [$time_local] "$request"
-      $status $body_bytes_sent "$http_referer" "$http_user_agent"
-      $request_id $request_time'
-
-  # WHY: Allows NGINX to read IngressClass resources across all namespaces.
-  # Without this, Ingress objects in tenant namespaces won't be picked up.
   watchIngressWithoutClass: false
   ingressClassResource:
     name: nginx
     enabled: true
     default: true
-    # WHY: Setting as default means Ingress objects don't need to specify
-    # ingressClassName: nginx explicitly — reduces boilerplate in tenant configs.
