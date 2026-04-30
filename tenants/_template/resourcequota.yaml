@@ -1,6 +1,7 @@
 # WHY: ResourceQuota caps how much CPU, memory, and how many objects
 # a tenant can create. Without this one tenant can starve all others
 # by consuming all node resources.
+---
 apiVersion: v1
 kind: ResourceQuota
 metadata:

@@ -4,7 +4,7 @@
 # Alternative is AWS ALB Ingress Controller but that only works on EKS
 # and costs money per ALB. NGINX works identically local and on AWS.
 # Full defaults: https://github.com/kubernetes/ingress-nginx/blob/main/charts/ingress-nginx/values.yaml
-
+---
 controller:
   # WHY: NodePort for local (kind) — no external load balancer exists locally.
   # CHANGE THIS to LoadBalancer when deploying to AWS EKS — AWS will

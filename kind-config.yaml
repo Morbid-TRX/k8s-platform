@@ -2,7 +2,7 @@
 # containers on your machine. This config defines a 1 control plane +
 # 2 worker node cluster — closer to real production topology than the
 # default single-node setup.
-
+---
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 

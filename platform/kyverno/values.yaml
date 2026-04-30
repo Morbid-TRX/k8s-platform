@@ -4,7 +4,7 @@
 # Alternative is OPA/Gatekeeper but Kyverno policies are plain YAML —
 # no need to learn Rego (a separate policy language). Much friendlier.
 # Full defaults: https://github.com/kyverno/kyverno/blob/main/charts/kyverno/values.yaml
-
+---
 replicaCount: 1
 # CHANGE THIS to 3 for production — single replica is a single point
 # of failure for your admission webhook. If Kyverno crashes, pod creation

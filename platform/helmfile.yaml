@@ -3,7 +3,7 @@
 # the right order, flags, and values files — you run one command:
 # helmfile apply
 # It's idempotent — safe to run multiple times, only applies changes.
-
+---
 repositories:
   - name: ingress-nginx
     url: https://kubernetes.github.io/ingress-nginx

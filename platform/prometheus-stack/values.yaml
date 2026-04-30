@@ -3,12 +3,12 @@
 # and pre-built Kubernetes dashboards. Installing them separately
 # means wiring up service discovery yourself — not worth it.
 # Full defaults: https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/values.yaml
-
+---
 grafana:
   enabled: true
-  adminPassword: "CHANGE-ME-use-a-secret-manager-in-prod"
-  # WHY: Hardcoded password is fine for local dev. For AWS, store this
+  # WHY: Hardcoded password is fine for local dev. For AWS, store this  # yamllint disable-line rule:comments-indentation
   # in AWS Secrets Manager and use External Secrets Operator to inject it.
+  adminPassword: "CHANGE-ME-use-a-secret-manager-in-prod"
 
   ingress:
     enabled: true

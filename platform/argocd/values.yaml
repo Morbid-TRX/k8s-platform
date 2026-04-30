@@ -1,7 +1,7 @@
 # WHY: These are overrides for the official ArgoCD Helm chart.
 # We only specify what we want to change — everything else uses chart defaults.
 # Full default values: https://github.com/argoproj/argo-helm/blob/main/charts/argo-cd/values.yaml
-
+---
 global:
   # CHANGE THIS: your domain if you have one, otherwise leave as-is for local
   domain: argocd.k8s-platform.local

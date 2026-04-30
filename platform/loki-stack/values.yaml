@@ -3,7 +3,7 @@
 # it doesn't index log content — only labels — so it's much cheaper on
 # storage and memory. Perfect for a small cluster.
 # Full defaults: https://github.com/grafana/helm-charts/blob/main/charts/loki-stack/values.yaml
-
+---
 loki:
   enabled: true
 
