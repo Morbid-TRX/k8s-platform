@@ -63,3 +63,4 @@ jobs:
         with:
           commit_message: "chore: update ${{ matrix.service }} image to ${{ steps.tag.outputs.IMAGE_TAG }}"
           file_pattern: "services/${{ matrix.service }}/deployment.yaml"
+          token: ${{ secrets.GH_PAT }}
