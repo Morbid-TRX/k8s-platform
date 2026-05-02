@@ -6,10 +6,10 @@ terraform {
   required_version = ">= 1.6.0"
 
   required_providers {
-    aws        = { source = "hashicorp/aws",        version = "~> 5.0" }
-    tls        = { source = "hashicorp/tls",        version = "~> 4.0" }
+    aws        = { source = "hashicorp/aws", version = "~> 5.0" }
+    tls        = { source = "hashicorp/tls", version = "~> 4.0" }
     kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.0" }
-    helm       = { source = "hashicorp/helm",       version = "~> 2.0" }
+    helm       = { source = "hashicorp/helm", version = "~> 2.0" }
   }
 
   # WHY: Remote state in S3 means everyone shares the same state file.
@@ -21,11 +21,11 @@ terraform {
   #     --key-schema AttributeName=LockID,KeyType=HASH \
   #     --billing-mode PAY_PER_REQUEST
   backend "s3" {
-    bucket         = "CHANGE-ME-k8s-platform-tfstate"
+    bucket         = "k8s-platform-tfstate-582165930795"
     key            = "dev/terraform.tfstate"
     region         = "ap-southeast-1"
     encrypt        = true
-    dynamodb_table = "CHANGE-ME-k8s-platform-tflock"
+    dynamodb_table = "k8s-platform-tflock"
   }
 }
 
@@ -71,6 +71,25 @@ module "ecr" {
   cluster_name = local.cluster_name
   services     = ["api-service", "worker-service"]
   tags         = local.common_tags
+}
+
+# WHY data source? We need the account ID to construct ECR ARNs
+# without hardcoding it in the config.
+data "aws_caller_identity" "current" {}
+
+module "github_oidc" {
+  source      = "../../modules/github-oidc"
+  prefix      = local.cluster_name
+  github_org  = "Morbid-TRX"
+  github_repo = "k8s-platform"
+
+  # Scopes the role to only push to this cluster's repos
+  ecr_repository_arns = [
+    for url in values(module.ecr.repository_urls) :
+    "arn:aws:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${split("/", url)[1]}/${split("/", url)[2]}"
+  ]
+
+  tags = local.common_tags
 }
 
 # WHY: Configured AFTER EKS is created using its outputs.
