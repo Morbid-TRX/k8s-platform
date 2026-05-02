@@ -1,7 +1,7 @@
 # k8s-platform
 
 A production-grade, multi-tenant Kubernetes platform demonstrating real DevOps/SRE skills.
-Built with GitOps, observability, security policies, and autoscaling.
+Built with GitOps, observability, security policies, and automated CI/CD to AWS ECR.
 
 > Companion project to [terraform-lab](https://github.com/Morbid-TRX/terraform-lab) — together they tell a complete cloud infrastructure story.
 
@@ -43,23 +43,38 @@ Platform (shared services)
 ### kubectl — services running in tenant-a
 ![kubectl status](docs/screenshots/kubectl-cli-status.jpg)
 
+### AWS ECR — Docker images pushed via OIDC
+![ECR Repositories](docs/screenshots/aws-ecr-repositories.jpg)
+
+### GitHub Actions — CD pipeline green
+![CD Pipeline](docs/screenshots/github-actions-cd.jpg)
+
 ## Stack
 
 | Layer | Tools |
 |-------|-------|
 | Runtime (local) | kind |
-| Runtime (cloud) | AWS EKS |
+| Runtime (cloud) | AWS EKS (planned) |
 | GitOps | ArgoCD |
 | Metrics | Prometheus + Grafana |
 | Logs | Loki + Promtail |
 | Security | Kyverno |
 | CI/CD | GitHub Actions |
-| Infrastructure | Terraform (VPC, EKS, ECR) |
-| Package manager | Helm + Helmfile |
+| Infrastructure | Terraform (ECR, IAM, S3, DynamoDB) |
+| Package manager | Helm |
+| Image registry | AWS ECR (KMS encrypted, immutable tags) |
+| Auth | GitHub OIDC — no static AWS credentials |
 
 ## Project Structure
 k8s-platform/
-├── infrastructure/        # Terraform: EKS, VPC, ECR
+├── infrastructure/        # Terraform: ECR, IAM OIDC, S3 state backend
+│   ├── environments/
+│   │   └── dev/           # Dev environment — ECR + GitHub OIDC role
+│   └── modules/
+│       ├── ecr/           # ECR repositories with lifecycle policies
+│       ├── eks/           # EKS cluster (planned)
+│       ├── vpc/           # VPC + subnets
+│       └── github-oidc/   # GitHub Actions OIDC provider + IAM role
 ├── platform/              # Helm values + ArgoCD apps
 │   ├── argocd/
 │   ├── prometheus-stack/
@@ -74,6 +89,35 @@ k8s-platform/
 │   ├── api-service/       # FastAPI + Prometheus metrics
 │   └── worker-service/    # Background processor
 └── .github/workflows/     # CI/CD pipelines
+├── ci.yaml            # Pre-commit, lint, helm lint
+└── cd.yaml            # Build + push to ECR via OIDC
+
+## AWS Infrastructure
+
+Provisioned with Terraform, state stored in S3 with DynamoDB locking.
+
+| Resource | Details |
+|----------|---------|
+| ECR repositories | `k8s-platform-dev/api-service`, `k8s-platform-dev/worker-service` |
+| ECR settings | KMS encrypted, immutable tags, scan on push, lifecycle policies |
+| GitHub OIDC provider | `token.actions.githubusercontent.com` |
+| IAM role | `k8s-platform-dev-github-actions` — assumed by GitHub Actions only |
+| IAM policy | ECR push scoped to this cluster's repos only |
+| S3 state bucket | `k8s-platform-tfstate-582165930795` — encrypted, versioned |
+| DynamoDB lock table | `k8s-platform-tflock` |
+
+## CD Pipeline
+
+Triggers on push to `main` when files in `services/` change.
+git push → GitHub Actions → OIDC authenticates to AWS (no static keys)
+→ ECR login → Docker build → push to ECR
+
+| Step | Tool | Details |
+|------|------|---------|
+| OIDC auth | aws-actions/configure-aws-credentials | Assumes IAM role via short-lived token |
+| ECR login | aws-actions/amazon-ecr-login | Authenticates Docker to ECR |
+| Build | docker/build-push-action | Buildx with GHA cache |
+| Push | ECR | Immutable versioned tags (e.g. `v20260502-abc1234`) |
 
 ## Local Setup
 
@@ -97,7 +141,8 @@ kind create cluster --name k8s-platform --config kind-config.yaml
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=90s
+kubectl wait --namespace ingress-nginx --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller --timeout=90s
 ```
 
 ### 3. Install ArgoCD
@@ -105,7 +150,8 @@ kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.
 ```bash
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-kubectl wait --namespace argocd --for=condition=ready pod --selector=app.kubernetes.io/name=argocd-server --timeout=120s
+kubectl wait --namespace argocd --for=condition=ready pod \
+  --selector=app.kubernetes.io/name=argocd-server --timeout=120s
 ```
 
 ### 4. Get ArgoCD password
@@ -180,18 +226,21 @@ kind load docker-image k8s-platform/worker-service:v1.0.0 --name k8s-platform
 | Resource limits required | Kyverno ClusterPolicy |
 | Cross-tenant isolation | NetworkPolicy (default deny) |
 | RBAC | Per-namespace Role + RoleBinding |
-| Secret encryption | AWS KMS (EKS) |
+| No static AWS credentials | GitHub OIDC — short-lived tokens only |
+| ECR image scanning | Scan on push enabled |
+| ECR encryption | KMS encrypted repositories |
+| Immutable image tags | Cannot overwrite existing tags |
 
-## Cost Estimate (AWS EKS)
+## Cost Estimate (AWS EKS — when provisioned)
 
 | Resource | Cost |
 |----------|------|
 | EKS control plane | $72/mo |
-| 2× t3.medium nodes | ~$73/mo |
+| 2x t3.medium nodes | ~$73/mo |
 | ECR + Route 53 + ALB | ~$25/mo |
 | **Total** | **~$170/mo** |
 
-> Use Spot instances to cut node cost by ~70% → ~$120/mo total
+> Current AWS spend: ~$0/mo (ECR free tier, S3/DynamoDB minimal cost)
 
 ## Status
 
@@ -206,7 +255,12 @@ kind load docker-image k8s-platform/worker-service:v1.0.0 --name k8s-platform
 | Kyverno security policies | ✅ Done |
 | Multi-tenant namespaces | ✅ Done |
 | Microservices deployed | ✅ Done |
+| AWS ECR repositories | ✅ Done |
+| GitHub OIDC + IAM role | ✅ Done |
+| CD pipeline → ECR | ✅ Done |
+| Terraform remote state (S3) | ✅ Done |
 | AWS EKS deployment | 🔜 Planned |
+| Full GitOps loop (ArgoCD → EKS) | 🔜 Planned |
 
 ## Author
 
