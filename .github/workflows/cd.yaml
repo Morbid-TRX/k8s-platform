@@ -19,7 +19,7 @@ jobs:
 
     permissions:
       id-token: write
-      contents: read
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -39,8 +39,11 @@ jobs:
         run: |
           echo "IMAGE_TAG=v$(date +'%Y%m%d')-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: services/${{ matrix.service }}
           push: true
