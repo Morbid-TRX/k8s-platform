@@ -6,26 +6,28 @@ Built with GitOps, observability, security policies, and automated CI/CD to AWS 
 > Companion project to [terraform-lab](https://github.com/Morbid-TRX/terraform-lab) — together they tell a complete cloud infrastructure story.
 
 ## Architecture
+
 ```
-Internet (Route 53 + ACM TLS)
-│
-▼
-NGINX Ingress Controller
-(TLS termination · rate limiting)
-│
-┌────┴──────────────┐
-▼                   ▼
-Tenant A            Tenant B
-namespace           namespace
-(NetworkPolicy + RBAC + ResourceQuota)
-│
-▼
-Platform (shared services)
-├── ArgoCD       — GitOps continuous delivery
-├── Prometheus   — metrics scraping
-├── Grafana      — dashboards and alerting
-├── Loki         — log aggregation
-└── Kyverno      — security policy enforcement
+                    Internet
+                       │
+                       ▼
+            NGINX Ingress Controller
+          (TLS termination · rate limiting)
+                       │
+          ┌────────────┴────────────┐
+          ▼                         ▼
+     Tenant A                  Tenant B
+     namespace                 namespace
+  (NetworkPolicy +          (NetworkPolicy +
+   RBAC + Quota)             RBAC + Quota)
+          │
+          ▼
+   Platform (shared)
+   ├── ArgoCD       — GitOps delivery
+   ├── Prometheus   — metrics
+   ├── Grafana      — dashboards
+   ├── Loki         — log aggregation
+   └── Kyverno      — policy enforcement
 ```
 
 ## Screenshots
@@ -71,30 +73,51 @@ Platform (shared services)
 
 ```
 k8s-platform/
-├── infrastructure/        # Terraform: ECR, IAM OIDC, S3 state backend
+├── .github/
+│   └── workflows/
+│       ├── ci.yaml                # Pre-commit, YAML lint, Helm lint
+│       └── cd.yaml                # Build + push to ECR via OIDC
+├── infrastructure/                # Terraform: ECR, IAM OIDC, S3 state backend
 │   ├── environments/
-│   │   └── dev/           # Dev environment — ECR + GitHub OIDC role
+│   │   └── dev/
+│   │       ├── main.tf            # Dev environment — ECR + GitHub OIDC role
+│   │       ├── variables.tf       # Input variables
+│   │       ├── outputs.tf         # ECR URLs + role ARN outputs
+│   │       └── terraform.tfvars   # Actual values (gitignored)
 │   └── modules/
-│       ├── ecr/           # ECR repositories with lifecycle policies
-│       ├── eks/           # EKS cluster (planned)
-│       ├── vpc/           # VPC + subnets
-│       └── github-oidc/   # GitHub Actions OIDC provider + IAM role
-├── platform/              # Helm values + ArgoCD apps
+│       ├── ecr/                   # ECR repositories with lifecycle policies
+│       │   ├── main.tf
+│       │   ├── variables.tf
+│       │   └── outputs.tf
+│       ├── eks/                   # EKS cluster (planned)
+│       │   ├── main.tf
+│       │   ├── variables.tf
+│       │   └── outputs.tf
+│       ├── vpc/                   # VPC + subnets
+│       │   ├── main.tf
+│       │   ├── variables.tf
+│       │   └── outputs.tf
+│       └── github-oidc/           # GitHub Actions OIDC provider + IAM role
+│           ├── main.tf
+│           ├── variables.tf
+│           └── outputs.tf
+├── platform/                      # Helm values + ArgoCD apps
 │   ├── argocd/
 │   ├── prometheus-stack/
 │   ├── loki-stack/
 │   ├── kyverno/
 │   └── ingress-nginx/
-├── tenants/               # Per-tenant namespace configs
-│   ├── _template/         # Copy this to add a new tenant
+├── tenants/                       # Per-tenant namespace configs
+│   ├── _template/                 # Copy this to add a new tenant
 │   ├── tenant-a/
 │   └── tenant-b/
-├── services/              # Microservices
-│   ├── api-service/       # FastAPI + Prometheus metrics
-│   └── worker-service/    # Background processor
-└── .github/workflows/     # CI/CD pipelines
-    ├── ci.yaml            # Pre-commit, lint, helm lint
-    └── cd.yaml            # Build + push to ECR via OIDC
+├── services/                      # Microservices
+│   ├── api-service/               # FastAPI + Prometheus metrics
+│   └── worker-service/            # Background processor
+├── docs/
+│   └── screenshots/               # Proof of deployment
+├── kind-config.yaml               # Local cluster configuration
+└── README.md
 ```
 
 ## AWS Infrastructure
