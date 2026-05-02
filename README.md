@@ -6,6 +6,7 @@ Built with GitOps, observability, security policies, and automated CI/CD to AWS 
 > Companion project to [terraform-lab](https://github.com/Morbid-TRX/terraform-lab) — together they tell a complete cloud infrastructure story.
 
 ## Architecture
+```
 Internet (Route 53 + ACM TLS)
 │
 ▼
@@ -25,6 +26,7 @@ Platform (shared services)
 ├── Grafana      — dashboards and alerting
 ├── Loki         — log aggregation
 └── Kyverno      — security policy enforcement
+```
 
 ## Screenshots
 
@@ -66,6 +68,8 @@ Platform (shared services)
 | Auth | GitHub OIDC — no static AWS credentials |
 
 ## Project Structure
+
+```
 k8s-platform/
 ├── infrastructure/        # Terraform: ECR, IAM OIDC, S3 state backend
 │   ├── environments/
@@ -89,8 +93,9 @@ k8s-platform/
 │   ├── api-service/       # FastAPI + Prometheus metrics
 │   └── worker-service/    # Background processor
 └── .github/workflows/     # CI/CD pipelines
-├── ci.yaml            # Pre-commit, lint, helm lint
-└── cd.yaml            # Build + push to ECR via OIDC
+    ├── ci.yaml            # Pre-commit, lint, helm lint
+    └── cd.yaml            # Build + push to ECR via OIDC
+```
 
 ## AWS Infrastructure
 
@@ -108,9 +113,11 @@ Provisioned with Terraform, state stored in S3 with DynamoDB locking.
 
 ## CD Pipeline
 
+```
 Triggers on push to `main` when files in `services/` change.
 git push → GitHub Actions → OIDC authenticates to AWS (no static keys)
 → ECR login → Docker build → push to ECR
+```
 
 | Step | Tool | Details |
 |------|------|---------|
