@@ -52,15 +52,3 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/k8s-platform-dev/${{ matrix.service }}:latest-dev
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Update image tag in manifests
-        run: |
-          sed -i "s|:v.*|:${{ steps.tag.outputs.IMAGE_TAG }}|g" \
-            services/${{ matrix.service }}/deployment.yaml
-
-      - name: Commit updated manifests
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore: update ${{ matrix.service }} image to ${{ steps.tag.outputs.IMAGE_TAG }}"
-          file_pattern: "services/${{ matrix.service }}/deployment.yaml"
-          token: ${{ secrets.GH_PAT }}
